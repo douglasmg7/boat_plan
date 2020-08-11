@@ -1,13 +1,4 @@
-use num_format::{Locale, ToFormattedString};
-
-#[derive(Debug)]
-struct Millimiter(f64);
-
-impl Millimiter {
-    pub fn from_mm(val: f64) -> Millimiter {
-        Millimiter(val * 2.0)
-    }
-}
+use super::si::Length;
 
 pub struct Boat {
     /// Boat name.
@@ -18,76 +9,61 @@ pub struct Boat {
     /// Equivalent to lenght on deck (LOD).
     /// LOA includes a reverse transom but does not include a bowsprint, overhanging bow pulpit,
     /// or any other non-integral overhanging gear.
-    loa: f64,
+    loa: Length,
 
     /// DWL (Design water line)
     ///
     /// Also know as LWL (lenght waterline).
     /// Does not include a surface-piercing rudder blade.
-    dwl: f64,
+    dwl: Length,
 
     /// B MAX
     ///
     /// Maximum beam.
-    b_max: f64,
-
-    temp: Millimiter,
+    b_max: Length,
 }
 
+#[allow(dead_code)]
 impl Boat {
     /// Create default boat.
     pub fn new(name: String) -> Boat {
         Boat {
             name: name,
-            loa: 4000.0,
-            dwl: 3800.0,
-            b_max: 1200.0,
-            // temp: Millimiter(10.0),
-            temp: Millimiter::from_mm(10.0),
+            loa: Length::from_meter(4.0),
+            dwl: Length::from_meter(3.8),
+            b_max: Length::from_meter(1.2),
         }
     }
 
-    /// LOA (lenght overall) in milimiters.
-    pub fn loa(&self) -> f64 {
+    /// LOA (lenght overall).
+    pub fn loa(&self) -> Length {
         self.loa
     }
 
-    /// LOA (lenght overall) in milimiters.
+    /// LOA (lenght overall).
     #[allow(dead_code)]
-    pub fn set_loa(&mut self, val: i32) {
-        self.loa = f64::from(val);
+    pub fn set_loa(&mut self, val: Length) {
+        self.loa = val;
     }
 
-    /// b max (maximum beam) in milimiters.
-    pub fn b_max(&self) -> f64 {
+    /// b max (maximum beam).
+    pub fn b_max(&self) -> Length {
         self.b_max
     }
 
     #[allow(dead_code)]
-    /// B MAX (Maximum beam) in milimiters.
-    pub fn set_b_max(&mut self, val: i32) {
-        self.b_max = f64::from(val);
+    /// B MAX (Maximum beam).
+    pub fn set_b_max(&mut self, val: Length) {
+        self.b_max = val;
     }
 
     /// Data information.
     pub fn data(&self) -> String {
-        let locale = &Locale::en;
-
         let mut data = String::new();
         data.push_str(&format!("[{}]\n", self.name));
-        data.push_str(&format!(
-            "\tLOA:  {:>6}m\n",
-            (self.loa as i32).to_formatted_string(locale)
-        ));
-        data.push_str(&format!(
-            "\tDWL:  {:>6}m\n",
-            (self.dwl as i32).to_formatted_string(locale)
-        ));
-        data.push_str(&format!(
-            "\tBeam: {:>6}m\n",
-            (self.b_max as i32).to_formatted_string(locale)
-        ));
-        data.push_str(&format!("\tTemp: {:>6?}m\n", self.temp));
+        data.push_str(&format!("\tLOA:  {:>6.3}m\n", self.loa.to_meter()));
+        data.push_str(&format!("\tDWL:  {:>6.3}m\n", self.dwl.to_meter()));
+        data.push_str(&format!("\tBeam: {:>6.3}m\n", self.b_max.to_meter()));
         data
     }
 }
@@ -102,9 +78,8 @@ pub struct Ratio {
 
 impl Ratio {
     pub fn new(boat: Boat) -> Ratio {
-        let length_beam_ratio = boat.loa() / boat.b_max();
         Ratio {
-            length_beam_ratio: length_beam_ratio,
+            length_beam_ratio: boat.loa.to_meter() / boat.b_max.to_meter(),
         }
     }
 

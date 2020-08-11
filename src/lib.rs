@@ -1,10 +1,12 @@
 mod boat;
-mod convert;
+mod si;
+
+use si::Length;
 
 pub fn run() {
     let mut boat = boat::Boat::new("Sail cruiser".to_string());
-    boat.set_loa(convert::foot_inch_to_mm(40.0, 0.) as i32);
-    boat.set_b_max(convert::foot_inch_to_mm(10.0, 0.) as i32);
+    boat.set_loa(Length::from_foot(40.0));
+    boat.set_b_max(Length::from_foot(4.0));
     println!("{}", boat.data());
 
     let ratio = boat::Ratio::new(boat);

@@ -1,5 +1,7 @@
 use super::si::Length;
+use std::fmt;
 
+/// BOAT
 pub struct Boat {
     /// Boat name.
     name: String,
@@ -56,41 +58,101 @@ impl Boat {
     pub fn set_b_max(&mut self, val: Length) {
         self.b_max = val;
     }
+}
 
-    /// Data information.
-    pub fn data(&self) -> String {
-        let mut data = String::new();
-        data.push_str(&format!("[{}]\n", self.name));
-        data.push_str(&format!("\tLOA:  {:>6.3}m\n", self.loa.to_meter()));
-        data.push_str(&format!("\tDWL:  {:>6.3}m\n", self.dwl.to_meter()));
-        data.push_str(&format!("\tBeam: {:>6.3}m\n", self.b_max.to_meter()));
-        data
+impl fmt::Display for Boat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "[{}]\n\tLOA:  {:>5.3}m\n\tDWL:   {:>5.3}m\n\tBeam:  {:>5.3}m",
+            self.name,
+            self.loa.to_meter(),
+            self.dwl.to_meter(),
+            self.b_max.to_meter()
+        )
     }
 }
 
+/// RATIOS
+///
+/// The ratios are nondimensional, which simply means that they have no units.
 /// The validity of the comparasions may not hold when one of the boats being compared is shorter than 25ft or longer than 75ft,
 /// but within that range, valid comparaisons can be made.
-/// The ratios are nondimensional, which simply means that they have no units.
+/// Perry, R. H. (2008) Yatch design according to perry. International Marine. (pp.10)
+
+/// Beam character.
+pub enum BeamCharacter {
+    Narrow,
+    ModerateNarrow,
+    Moderate,
+    ModerateBeamy,
+    Beamy,
+}
+
+impl fmt::Display for BeamCharacter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            BeamCharacter::Narrow => write!(f, "Narrow"),
+            BeamCharacter::ModerateNarrow => write!(f, "Moderate narrow"),
+            BeamCharacter::Moderate => write!(f, "Moderate"),
+            BeamCharacter::ModerateBeamy => write!(f, "Moderate beamy"),
+            BeamCharacter::Beamy => write!(f, "Beamy"),
+        }
+    }
+}
+
+/// L/B (lenght-to-Beam Ratio)
+/// This ratio is useful for determining whether a boat is beamy or narrow.
+pub struct LengthBeamRation {
+    value: f64,
+    beam_character: BeamCharacter,
+}
+
+impl LengthBeamRation {
+    pub fn from_boat(boat: Boat) -> LengthBeamRation {
+        let value = boat.loa.to_meter() / boat.b_max.to_meter();
+        LengthBeamRation {
+            value: value,
+            beam_character: if value >= 4.00 {
+                BeamCharacter::Narrow
+            } else if value >= 3.65 {
+                BeamCharacter::ModerateNarrow
+            } else if value >= 3.30 {
+                BeamCharacter::Moderate
+            } else if value > 3.00 {
+                BeamCharacter::ModerateBeamy
+            } else {
+                BeamCharacter::Beamy
+            },
+        }
+    }
+}
+
+impl fmt::Display for LengthBeamRation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:.2} [{}]", self.value, self.beam_character)
+    }
+}
+
+/// Ratio
 pub struct Ratio {
-    /// L/B (lenght-to-Beam Ratio)
-    length_beam_ratio: f64,
+    length_beam_ratio: LengthBeamRation,
 }
 
 impl Ratio {
     pub fn new(boat: Boat) -> Ratio {
         Ratio {
-            length_beam_ratio: boat.loa.to_meter() / boat.b_max.to_meter(),
+            length_beam_ratio: LengthBeamRation::from_boat(boat),
         }
     }
+}
 
-    // /// L/B (lenght-to-Beam Ratio).
-    // pub fn length_beam_ration(&self) -> (i32, String) {}
-
-    /// Data information.
-    pub fn data(&self) -> String {
-        let mut data = String::new();
-        data.push_str(&format!("[{}]\n", "Ratio"));
-        data.push_str(&format!("\tL/B: {:>6.2}\n", self.length_beam_ratio));
-        data
+impl fmt::Display for Ratio {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[Ratio]\n\tL/B:  {:>5}\n", self.length_beam_ratio)
     }
 }
+
+// Refereces
+// Perry, R. H. (2008) Yatch design according to perry. International Marine. (pp.10, 11)
+// Beatiful boat page 259.

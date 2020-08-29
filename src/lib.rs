@@ -9,6 +9,6 @@ pub fn run() {
     boat.set_b_max(Length::from_foot(4.0));
     println!("{}", boat);
 
-    let ratio = boat::Ratio::new(boat);
-    println!("\n{}", ratio);
+    let ratios = boat::Ratios::new(&boat);
+    println!("\n{}", ratios);
 }

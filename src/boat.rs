@@ -196,28 +196,27 @@ impl fmt::Display for LengthBeamRatio {
 /// Displacement character.
 #[derive(PartialEq, Debug)]
 pub enum DisplacementCharacter {
-    Heavy,
-    ModerateHeavy,
-    Moderate,
-    ModerateLight,
-    Light,
     Ultralight,
+    Light,
+    Moderate,
+    Heavy,
+    Ultraheavy,
 }
 
 impl fmt::Display for DisplacementCharacter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DisplacementCharacter::Heavy => write!(f, "Heavy"),
-            DisplacementCharacter::ModerateHeavy => write!(f, "Moderate heavy"),
-            DisplacementCharacter::Moderate => write!(f, "Moderate"),
-            DisplacementCharacter::ModerateLight => write!(f, "Moderate light"),
-            DisplacementCharacter::Light => write!(f, "Light"),
             DisplacementCharacter::Ultralight => write!(f, "Ultralight"),
+            DisplacementCharacter::Light => write!(f, "Light"),
+            DisplacementCharacter::Moderate => write!(f, "Moderate"),
+            DisplacementCharacter::Heavy => write!(f, "Heavy"),
+            DisplacementCharacter::Ultraheavy => write!(f, "Ultraheavy"),
         }
     }
 }
 
-/// D/L (displacment-to-lenght Ratio)
+/// DLR - D/L (displacment-to-lenght Ratio)
+/// A DLR less than 200 is indicative of a racing boat, while a DLR greater than 300 or so is indicative of a heavy cruising boat.
 /// This ratio is useful for determining whether a boat is heavy or light.
 pub struct DisplacementLengthRatio {
     value: f64,
@@ -226,23 +225,23 @@ pub struct DisplacementLengthRatio {
 
 impl DisplacementLengthRatio {
     pub fn from_boat(boat: &Boat) -> DisplacementLengthRatio {
+        // Long ton = diplacement(lb) / 2240
+        // DLR = (diplacement(lb) / 2240) / ((0.01 * LWL(ft)) exp 3)
+        // D/L of 260 is considered the "middle" of the overall displacemente range by Perry.
+        // Most full kell boats, by virtue of the volume in their keels, have D/L over 325.
         let value = boat.displacement.to_long_ton() / (boat.dwl.to_foot() * 0.01).powf(3.0);
         DisplacementLengthRatio {
             value: value,
-            displacement_character: if value < 100.0 {
+            displacement_character: if value < 90.0 {
                 DisplacementCharacter::Ultralight
-            } else if value <= 200.0 {
+            } else if value < 180.0 {
                 DisplacementCharacter::Light
-            } else if value < 220.0 {
-                DisplacementCharacter::ModerateLight
-            } else if value <= 280.0 {
-                // D/L of 260 is considered the "middle" of the overall displacemente range by Perry.
+            } else if value < 270.0 {
                 DisplacementCharacter::Moderate
-            } else if value <= 300.0 {
-                DisplacementCharacter::ModerateHeavy
-            } else {
-                // Most full kell boats, by virtue of the volume in their keels, have D/L over 325.
+            } else if value <= 360.0 {
                 DisplacementCharacter::Heavy
+            } else {
+                DisplacementCharacter::Ultraheavy
             },
         }
     }
@@ -339,7 +338,7 @@ mod test {
         boat.set_dwl(Length::from_foot(32.0));
 
         // Ultralight.
-        boat.set_displacement(Weight::from_long_ton(3.0));
+        boat.set_displacement(Weight::from_long_ton(2.0));
         let ratios = Ratios::new(&boat);
         print!(
             "Ultralight\n\
@@ -378,28 +377,8 @@ mod test {
             DisplacementCharacter::Light
         );
 
-        // Moderate light.
-        boat.set_displacement(Weight::from_long_ton(7.0));
-        let ratios = Ratios::new(&boat);
-        print!(
-            "Moderate light\n\
-            DWL: {} ft\n\
-            Displacement: {:.1} ton\n\
-            D/L: {:.0} [{}]\n\n",
-            boat.dwl.to_foot(),
-            boat.displacement.to_long_ton(),
-            ratios.displacement_lenght_ratio.value,
-            ratios.displacement_lenght_ratio.displacement_character
-        );
-        assert_eq!(
-            Ratios::new(&boat)
-                .displacement_lenght_ratio
-                .displacement_character,
-            DisplacementCharacter::ModerateLight
-        );
-
         // Moderate.
-        boat.set_displacement(Weight::from_long_ton(8.0));
+        boat.set_displacement(Weight::from_long_ton(7.0));
         let ratios = Ratios::new(&boat);
         print!(
             "Moderate\n\
@@ -418,28 +397,8 @@ mod test {
             DisplacementCharacter::Moderate
         );
 
-        // Moderate heavy.
-        boat.set_displacement(Weight::from_long_ton(9.5));
-        let ratios = Ratios::new(&boat);
-        print!(
-            "Moderate heavy\n\
-            DWL: {} ft\n\
-            Displacement: {:.1} ton\n\
-            D/L: {:.0} [{}]\n\n",
-            boat.dwl.to_foot(),
-            boat.displacement.to_long_ton(),
-            ratios.displacement_lenght_ratio.value,
-            ratios.displacement_lenght_ratio.displacement_character
-        );
-        assert_eq!(
-            Ratios::new(&boat)
-                .displacement_lenght_ratio
-                .displacement_character,
-            DisplacementCharacter::ModerateHeavy
-        );
-
         // Heavy.
-        boat.set_displacement(Weight::from_long_ton(10.0));
+        boat.set_displacement(Weight::from_long_ton(9.0));
         let ratios = Ratios::new(&boat);
         print!(
             "Heavy\n\
@@ -456,6 +415,26 @@ mod test {
                 .displacement_lenght_ratio
                 .displacement_character,
             DisplacementCharacter::Heavy
+        );
+
+        // Ultraheavy.
+        boat.set_displacement(Weight::from_long_ton(12.0));
+        let ratios = Ratios::new(&boat);
+        print!(
+            "Ultraheavy\n\
+            DWL: {} ft\n\
+            Displacement: {:.1} ton\n\
+            D/L: {:.0} [{}]\n\n",
+            boat.dwl.to_foot(),
+            boat.displacement.to_long_ton(),
+            ratios.displacement_lenght_ratio.value,
+            ratios.displacement_lenght_ratio.displacement_character
+        );
+        assert_eq!(
+            Ratios::new(&boat)
+                .displacement_lenght_ratio
+                .displacement_character,
+            DisplacementCharacter::Ultraheavy
         );
     }
 

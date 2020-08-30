@@ -1,4 +1,4 @@
-use super::si::{Length, Weight};
+use super::si::{Area, Length, Weight};
 use std::fmt;
 
 /// BOAT
@@ -26,6 +26,9 @@ pub struct Boat {
 
     /// Displacement
     displacement: Weight,
+
+    /// Sail area.
+    sail_area: Area,
 }
 
 #[allow(dead_code)]
@@ -38,6 +41,7 @@ impl Boat {
             dwl: Length::from_meter(3.8),
             b_max: Length::from_meter(1.2),
             displacement: Weight::from_kilogram(80.0),
+            sail_area: Area::from_meter2(6.0),
         }
     }
 
@@ -76,6 +80,15 @@ impl Boat {
     pub fn set_displacement(&mut self, val: Weight) {
         self.displacement = val;
     }
+
+    /// Sail area.
+    pub fn sail_area(&self) -> Area {
+        self.sail_area
+    }
+    #[allow(dead_code)]
+    pub fn set_sail_area(&mut self, val: Area) {
+        self.sail_area = val;
+    }
 }
 
 impl fmt::Display for Boat {
@@ -86,12 +99,14 @@ impl fmt::Display for Boat {
             \tLOA:         {:>9.3}m\n\
             \tDWL:         {:>9.3}m\n\
             \tBeam:        {:>9.3}m\n\
-            \tDisplacment: {:>9.0}kg",
+            \tDisplacment: {:>9.0}kg\n\
+            \tSail area:   {:>9.1}m2",
             self.name,
             self.loa.to_meter(),
             self.dwl.to_meter(),
             self.b_max.to_meter(),
-            self.displacement.to_kilogram()
+            self.displacement.to_kilogram(),
+            self.sail_area.to_meter2()
         )
     }
 }
@@ -108,6 +123,7 @@ impl fmt::Display for Boat {
 pub struct Ratios {
     length_beam_ratio: LengthBeamRatio,
     displacement_lenght_ratio: DisplacementLengthRatio,
+    sail_area_displacement: SailAreaDisplacementRatio,
 }
 
 impl Ratios {
@@ -115,6 +131,7 @@ impl Ratios {
         Ratios {
             length_beam_ratio: LengthBeamRatio::from_boat(boat),
             displacement_lenght_ratio: DisplacementLengthRatio::from_boat(boat),
+            sail_area_displacement: SailAreaDisplacementRatio::from_boat(boat),
         }
     }
 }
@@ -124,16 +141,17 @@ impl fmt::Display for Ratios {
         write!(
             f,
             "[Ratio]\n\
-            \tL/B:  {:>5}\n\
-            \tD/L:  {:>5}\n
+            \tL/B:   {:>5}\n\
+            \tD/L:   {:>5}\n\
+            \tSA/D:  {:>5}\n
             ",
-            self.length_beam_ratio, self.displacement_lenght_ratio
+            self.length_beam_ratio, self.displacement_lenght_ratio, self.sail_area_displacement
         )
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// L/B - LENGHT TO BEAM RATIO
+// LBR - LENGHT TO BEAM RATIO
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Beam character.
 #[derive(PartialEq, Debug)]
@@ -157,7 +175,7 @@ impl fmt::Display for BeamCharacter {
     }
 }
 
-/// L/B (lenght-to-Beam Ratio)
+/// LBR - L/B (lenght-to-Beam Ratio)
 /// This ratio is useful for determining whether a boat is beamy or narrow.
 pub struct LengthBeamRatio {
     value: f64,
@@ -191,7 +209,7 @@ impl fmt::Display for LengthBeamRatio {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// D/L - DISPLACEMENTE TO LENGTH RATIO
+// DLR - DISPLACEMENTE TO LENGTH RATIO
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Displacement character.
 #[derive(PartialEq, Debug)]
@@ -253,6 +271,63 @@ impl fmt::Display for DisplacementLengthRatio {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// SADR - SA/D - SAIL AREA DISPLACEMENTE RATIO
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// Sail area character.
+/// Motorsailers	13 - 14
+/// Slow auxiliary sailboats	14 - 15
+/// Average offshore cruisers	15 - 16
+/// Coastal cruisers	16 - 17
+/// Racing yachts	17 - 19
+/// Ultra light racers, class racers, daysailers	20+
+///
+/// A typical cruising boat today will hava a SA/D of 17.5 to 18.5.
+/// This is enough power to drive the boat reasonably well in light air while not overpowering it too quickly when the breeze picks up.
+#[derive(PartialEq, Debug)]
+pub enum SailAreaCharacter {
+    Low,
+    Moderate,
+    High,
+}
+
+impl fmt::Display for SailAreaCharacter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SailAreaCharacter::Low => write!(f, "Low"),
+            SailAreaCharacter::Moderate => write!(f, "Moderate"),
+            SailAreaCharacter::High => write!(f, "High"),
+        }
+    }
+}
+
+/// SADR - SA/D (sail area to displacemet ratio)
+pub struct SailAreaDisplacementRatio {
+    value: f64,
+    sail_area_character: SailAreaCharacter,
+}
+
+impl SailAreaDisplacementRatio {
+    pub fn from_boat(boat: &Boat) -> SailAreaDisplacementRatio {
+        let value = boat.sail_area.to_meter2() / boat.displacement.to_long_ton().powf(2.0 / 3.0);
+        SailAreaDisplacementRatio {
+            value: value,
+            sail_area_character: if value < 15.0 {
+                SailAreaCharacter::Low
+            } else if value <= 20.0 {
+                SailAreaCharacter::Moderate
+            } else {
+                SailAreaCharacter::High
+            },
+        }
+    }
+}
+
+impl fmt::Display for SailAreaDisplacementRatio {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:.1} [{}]", self.value, self.sail_area_character)
+    }
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // TEST
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,6 +524,70 @@ mod test {
         assert_eq!(
             Ratios::new(&boat).displacement_lenght_ratio.value.round(),
             214.0
+        );
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // SAIL AREA DISPLACEMENT RATIO
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    #[test]
+    fn sail_area_character() {
+        use super::*;
+        let mut boat = Boat::new("".to_string());
+        boat.set_displacement(Weight::from_pound(15680.0));
+
+        // Low.
+        boat.set_sail_area(Area::from_foot2(550.0));
+        let ratios = Ratios::new(&boat);
+        print!(
+            "SailAreaDisplacementRatio: {}",
+            ratios.sail_area_displacement,
+        );
+        assert_eq!(
+            Ratios::new(&boat)
+                .sail_area_displacement
+                .sail_area_character,
+            SailAreaCharacter::Low
+        );
+
+        // Moderate.
+        boat.set_sail_area(Area::from_foot2(704.0));
+        let ratios = Ratios::new(&boat);
+        print!(
+            "SailAreaDisplacementRatio: {}",
+            ratios.sail_area_displacement,
+        );
+        assert_eq!(
+            Ratios::new(&boat)
+                .sail_area_displacement
+                .sail_area_character,
+            SailAreaCharacter::Moderate
+        );
+
+        // High.
+        boat.set_sail_area(Area::from_foot2(800.0));
+        let ratios = Ratios::new(&boat);
+        print!(
+            "SailAreaDisplacementRatio: {}",
+            ratios.sail_area_displacement,
+        );
+        assert_eq!(
+            Ratios::new(&boat)
+                .sail_area_displacement
+                .sail_area_character,
+            SailAreaCharacter::High
+        );
+    }
+
+    #[test]
+    fn sail_area_displacement() {
+        use super::*;
+        let mut boat = Boat::new("".to_string());
+        boat.set_displacement(Weight::from_pound(15680.0));
+        boat.set_sail_area(Area::from_foot2(704.0));
+        assert_eq!(
+            Ratios::new(&boat).sail_area_displacement.value.round(),
+            18.0
         );
     }
 }

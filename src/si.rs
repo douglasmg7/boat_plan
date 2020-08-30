@@ -69,6 +69,54 @@ impl Div for Length {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Area
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#[derive(Debug, Copy, Clone)]
+pub struct Area {
+    // Meter2.
+    val: f64,
+}
+
+#[allow(dead_code)]
+impl Area {
+    pub fn from_meter2(val: f64) -> Area {
+        Area { val: val }
+    }
+
+    pub fn to_meter2(&self) -> f64 {
+        self.val
+    }
+
+    pub fn from_foot2(val: f64) -> Area {
+        Area { val: val / 10.764 }
+    }
+
+    pub fn to_foot2(&self) -> f64 {
+        self.val * 10.764
+    }
+}
+
+impl Add for Area {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            val: self.val + other.val,
+        }
+    }
+}
+
+impl Div for Area {
+    type Output = Self;
+
+    fn div(self, other: Self) -> Self {
+        Self {
+            val: self.val / other.val,
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Weight
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Copy, Clone)]
@@ -168,6 +216,16 @@ mod test {
 
         let loa = Length::from_foot(15.0) + Length::from_inch(4.0);
         assert_eq!(loa.to_millimiter(), 4572.0 + 101.6);
+    }
+
+    #[test]
+    fn area_conversions() {
+        let meter2 = Area::from_meter2(1.0);
+        assert_eq!(meter2.to_meter2(), 1.0);
+        assert_eq!(meter2.to_foot2(), 10.764);
+
+        let foot2 = Area::from_foot2(1.0);
+        assert_eq!(format!("{:.6}", foot2.to_meter2()), "0.092902");
     }
 
     #[test]
